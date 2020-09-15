@@ -1,1 +1,1 @@
-# check-user-iam-lambda
+# iam-lambda
