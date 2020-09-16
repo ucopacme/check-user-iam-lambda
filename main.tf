@@ -10,9 +10,9 @@ provider "archive" {}
 
 # Insert python script here
 data "archive_file" "zip" {
-  type        = "zip"
-  source_file = "finduser.py"
   output_path = "finduser.zip"
+  source_file = "finduser.py"
+  type        = "zip"
 }
 
 data "aws_iam_policy_document" "policy" {
@@ -34,16 +34,16 @@ data "aws_iam_policy_document" "policy" {
 # I only used 'chs_region'_for_lambda for testing
 
 resource "aws_iam_role" "chs_oregon_iam_for_lambda" {
-  name               = "chs_oregon_iam_for_lambda"
   assume_role_policy = data.aws_iam_policy_document.policy.json
+  name               = "chs_oregon_iam_for_lambda"
+  tags               = merge(var.tags, map("Name", var.name))
 }
 
 resource "aws_iam_policy" "chs_oregon_lambda_logging" {
+  description = "IAM policy for logging from a lambda"
   name        = "chs_oregon_lambda_logging"
   path        = "/"
-  description = "IAM policy for logging from a lambda"
-
-  policy = <<EOF
+  policy      = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -67,40 +67,41 @@ EOF
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_logs" {
-  role       = aws_iam_role.chs_oregon_iam_for_lambda.name
+  count = var.enabled ? 1 : 0
   policy_arn = aws_iam_policy.chs_oregon_lambda_logging.arn
+  role       = aws_iam_role.chs_oregon_iam_for_lambda.name
 }
 
 resource "aws_cloudwatch_event_rule" "every_thirty_minutes" {
-  name                = "every-thirty-minute"
   description         = "Fires every thirty minutes"
- # schedule_expression = "cron(0/30 * * * ? *)"
+  name                = "every-thirty-minute"
   schedule_expression = "cron(0 15 ? * MON *)"
 }
 
 resource "aws_cloudwatch_event_target" "check_every_thirty_minute" {
+  count = var.enabled ? 1 : 0
+  arn       = aws_lambda_function.lambda.arn
   rule      = aws_cloudwatch_event_rule.every_thirty_minutes.name
   target_id = "lambda"
-  arn       = aws_lambda_function.lambda.arn
 }
 
 resource "aws_lambda_permission" "allow_cloudwatch_to_call_check" {
-  statement_id  = "AllowExecutionFromCloudWatch"
+  count = var.enabled ? 1 : 0
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.every_thirty_minutes.arn
+  statement_id  = "AllowExecutionFromCloudWatch"
 }
 
 resource "aws_lambda_function" "lambda" {
-  function_name = "finduser"
-
   filename         = data.archive_file.zip.output_path
+  function_name    = "finduser"
+  handler          = "finduser.lambda_handler"
+  role             = aws_iam_role.chs_oregon_iam_for_lambda.arn
+  runtime          = "python3.7"
   source_code_hash = data.archive_file.zip.output_base64sha256
-
-  role    = aws_iam_role.chs_oregon_iam_for_lambda.arn
-  handler = "finduser.lambda_handler"
-  runtime = "python3.7"
+  tags             = merge(var.tags, map("Name", var.name))
 
   environment {
     variables = {
