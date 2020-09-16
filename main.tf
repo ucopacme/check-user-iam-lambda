@@ -2,9 +2,9 @@ terraform {
   required_version = ">= 0.12"
 }
 
-#provider "aws" {
-#  region = var.aws_region
-#}
+provider "aws" {
+  region = var.aws_region
+}
 
 provider "archive" {}
 
@@ -29,19 +29,15 @@ data "aws_iam_policy_document" "policy" {
   }
 }
 
-# Note: since this TF script creates a new role, it must be unique.
-# suggestion is: call it 'application_region'_for_lambda
-# I only used 'chs_region'_for_lambda for testing
-
-resource "aws_iam_role" "chs_oregon_iam_for_lambda" {
+resource "aws_iam_role" "iam_for_lambda" {
   assume_role_policy = data.aws_iam_policy_document.policy.json
-  name               = "chs_oregon_iam_for_lambda"
+  name               = "iam_for_lambda"
   tags               = merge(var.tags, map("Name", var.name))
 }
 
-resource "aws_iam_policy" "chs_oregon_lambda_logging" {
+resource "aws_iam_policy" "lambda_logging" {
   description = "IAM policy for logging from a lambda"
-  name        = "chs_oregon_lambda_logging"
+  name        = "lambda_logging"
   path        = "/"
   policy      = <<EOF
 {
@@ -67,9 +63,9 @@ EOF
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_logs" {
-  count = var.enabled ? 1 : 0
-  policy_arn = aws_iam_policy.chs_oregon_lambda_logging.arn
-  role       = aws_iam_role.chs_oregon_iam_for_lambda.name
+  count      = var.enabled ? 1 : 0
+  policy_arn = aws_iam_policy.lambda_logging.arn
+  role       = aws_iam_role.iam_for_lambda.name
 }
 
 resource "aws_cloudwatch_event_rule" "every_thirty_minutes" {
@@ -79,14 +75,14 @@ resource "aws_cloudwatch_event_rule" "every_thirty_minutes" {
 }
 
 resource "aws_cloudwatch_event_target" "check_every_thirty_minute" {
-  count = var.enabled ? 1 : 0
+  count     = var.enabled ? 1 : 0
   arn       = aws_lambda_function.lambda.arn
   rule      = aws_cloudwatch_event_rule.every_thirty_minutes.name
   target_id = "lambda"
 }
 
 resource "aws_lambda_permission" "allow_cloudwatch_to_call_check" {
-  count = var.enabled ? 1 : 0
+  count         = var.enabled ? 1 : 0
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda.function_name
   principal     = "events.amazonaws.com"
@@ -98,7 +94,7 @@ resource "aws_lambda_function" "lambda" {
   filename         = data.archive_file.zip.output_path
   function_name    = "finduser"
   handler          = "finduser.lambda_handler"
-  role             = aws_iam_role.chs_oregon_iam_for_lambda.arn
+  role             = aws_iam_role.iam_for_lambda.arn
   runtime          = "python3.7"
   source_code_hash = data.archive_file.zip.output_base64sha256
   tags             = merge(var.tags, map("Name", var.name))
