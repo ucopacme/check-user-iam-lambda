@@ -31,7 +31,7 @@ data "aws_iam_policy_document" "policy" {
 
 resource "aws_iam_role" "iam_for_lambda" {
   assume_role_policy = data.aws_iam_policy_document.policy.json
-  name               = "iam_for_lambda"
+  name               = "chs_iam_for_lambda_cloudwatch"
   tags               = merge(var.tags, map("Name", var.name))
 }
 
