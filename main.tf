@@ -37,7 +37,7 @@ resource "aws_iam_role" "iam_for_lambda" {
 
 resource "aws_iam_policy" "lambda_logging" {
   description = "IAM policy for logging from a lambda"
-  name        = "lambda_logging"
+  name        = "chs_lambda_logging_cloudwatch"
   path        = "/"
   policy      = <<EOF
 {
@@ -68,16 +68,16 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
   role       = aws_iam_role.iam_for_lambda.name
 }
 
-resource "aws_cloudwatch_event_rule" "every_thirty_minutes" {
-  description         = "Fires every thirty minutes"
-  name                = "every-thirty-minute"
-  schedule_expression = "cron(0 15 ? * MON *)"
+resource "aws_cloudwatch_event_rule" "every_thirty" {
+  description         = "Fires every thirty"
+  name                = "every-thirty"
+  schedule_expression = "cron(0 8 1 * ? *)"
 }
 
-resource "aws_cloudwatch_event_target" "check_every_thirty_minute" {
+resource "aws_cloudwatch_event_target" "check_every_thirty" {
   count     = var.enabled ? 1 : 0
   arn       = aws_lambda_function.lambda.arn
-  rule      = aws_cloudwatch_event_rule.every_thirty_minutes.name
+  rule      = aws_cloudwatch_event_rule.every_thirty.name
   target_id = "lambda"
 }
 
@@ -86,7 +86,7 @@ resource "aws_lambda_permission" "allow_cloudwatch_to_call_check" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda.function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.every_thirty_minutes.arn
+  source_arn    = aws_cloudwatch_event_rule.every_thirty.arn
   statement_id  = "AllowExecutionFromCloudWatch"
 }
 
