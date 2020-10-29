@@ -1,7 +1,8 @@
 import boto3
 import time
 from botocore.exceptions import ClientError
-#pp = pprint.PrettyPrinter(indent=4)
+
+# pp = pprint.PrettyPrinter(indent=4)
 import smtplib
 import email.utils
 from email.mime.multipart import MIMEMultipart
@@ -11,13 +12,9 @@ import json
 from botocore.exceptions import ClientError
 
 
-
-
 def get_secret():
 
-    secret_name = (
-        "Global-SES-Central-Authority"
-    )
+    secret_name = "Global-SES-Central-Authority"
     region_name = "us-west-2"
 
     # Create a Secrets Manager client
@@ -63,24 +60,24 @@ def get_secret():
     return secret
 
 
-
 def lambda_handler(event, context):
-    iam = boto3.client('iam')
+    iam = boto3.client("iam")
+
 
 secret = get_secret()
-iam = boto3.client('iam')
-alias = boto3.client('iam').list_account_aliases()['AccountAliases'][0]
+iam = boto3.client("iam")
+alias = boto3.client("iam").list_account_aliases()["AccountAliases"][0]
 unapproved_userlist = []
-SENDER =  "central-authority@ucop.edu"
+SENDER = "central-authority@ucop.edu"
 SENDERNAME = alias
 RECIPIENT = "david.rivera@ucop.edu"
-AWS_REGION = "us-west-2"   #change if sending from another region
+AWS_REGION = "us-west-2"  # change if sending from another region
 CHARSET = "UTF-8"
 # Replace smtp_username with your Amazon SES SMTP user name.
-USERNAME_SMTP = json.loads(secret)['USERNAME_SMTP']
+USERNAME_SMTP = json.loads(secret)["USERNAME_SMTP"]
 
 # Replace smtp_password with your Amazon SES SMTP password.
-PASSWORD_SMTP = json.loads(secret)['PASSWORD_SMTP']
+PASSWORD_SMTP = json.loads(secret)["PASSWORD_SMTP"]
 
 # (Optional) the name of a configuration set to use for this message.
 # If you comment out this line, you also need to remove or comment out
@@ -92,49 +89,51 @@ CONFIGURATION_SET = "RGPOGrants"
 # endpoint in the appropriate region.
 HOST = "email-smtp.us-west-2.amazonaws.com"
 PORT = 587
-SUBJECT = "Local Users Found on AWS Account: "  + alias
+SUBJECT = "Local Users Found on AWS Account: " + alias
 
- # for non-HTML emails
-BODY_TEXT = ("Amazon SES Test (Python)\r\n"
-             "Email sent using "
-             "AWS SDK for Python (Boto)."
-             )
+# for non-HTML emails
+BODY_TEXT = (
+    "Amazon SES Test (Python)\r\n" "Email sent using " "AWS SDK for Python (Boto)."
+)
 BODY_HTML = """
     <html>
     <head></head>
     <body>
-      <p> The following NON-APPROVED Local Users have been created on this AWS Account. 
+      <p> The following NON-APPROVED Local Users have been created on this AWS Account.
       <ul>
             """
 
+
 def is_user_approved(data):
-    status = 'Non-Approved'
-#    pp.pprint(data)
+    status = "Non-Approved"
+    #    pp.pprint(data)
     for x in data:
-         if x['Key'] == 'Approved':
-                   #print("xxxx found xxxx ", t['Key'])
-                   status = 'Approved'
+        if x["Key"] == "Approved":
+            # print("xxxx found xxxx ", t['Key'])
+            status = "Approved"
 
     return status
 
 
 response = iam.list_users()
-#pp.pprint(response)
+# pp.pprint(response)
 
-for user in response['Users']:
-    tags = iam.list_user_tags(UserName = user['UserName'])
+for user in response["Users"]:
+    tags = iam.list_user_tags(UserName=user["UserName"])
 
-    result = 'Non-Approved'
+    result = "Non-Approved"
 
-    if tags['Tags']:
-        result = is_user_approved(tags['Tags'])
-        #print(result)
+    if tags["Tags"]:
+        result = is_user_approved(tags["Tags"])
+        # print(result)
 
-    if result =="Non-Approved":
-         report = ("{0} User: {1}\nCreationDate: {2}".format(result, user['UserName'], user['CreateDate']))
-         unapproved_userlist.append({report})
+    if result == "Non-Approved":
+        report = "{0} User: {1}\nCreationDate: {2}".format(
+            result, user["UserName"], user["CreateDate"]
+        )
+        unapproved_userlist.append({report})
 
-html_string = ''
+html_string = ""
 for i in unapproved_userlist:
     temp_list = []
     temp_list = [b for b in i]
@@ -145,7 +144,7 @@ for i in unapproved_userlist:
 
 
 BODY_HTML += html_string
-BODY_HTML +="""</u1>
+BODY_HTML += """</u1>
        <br>
        <br>
 <p> NOTE: The Report will only be delivered if NON-APPROVED Local Users are found on this AWS Account. <p>
@@ -156,7 +155,7 @@ BODY_HTML +="""</u1>
                     """
 
 
-client = boto3.client('ses', region_name="us-west-2")
+client = boto3.client("ses", region_name="us-west-2")
 
 
 # importance of 438 - this is the default number of letters in email if no non-approved users are found.
@@ -164,21 +163,21 @@ client = boto3.client('ses', region_name="us-west-2")
 # nothing to email.
 
 # unpound to verify message length
-#print(len(BODY_HTML))
+# print(len(BODY_HTML))
 
 if len(BODY_HTML) != 438:
 
-# Create message container - the correct MIME type is multipart/alternative.
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = SUBJECT
-    msg['From'] = email.utils.formataddr((SENDERNAME, SENDER))
-    msg['To'] = RECIPIENT
+    # Create message container - the correct MIME type is multipart/alternative.
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = SUBJECT
+    msg["From"] = email.utils.formataddr((SENDERNAME, SENDER))
+    msg["To"] = RECIPIENT
     # Comment or delete the next line if you are not using a configuration set
-    msg.add_header('X-SES-CONFIGURATION-SET',CONFIGURATION_SET)
+    msg.add_header("X-SES-CONFIGURATION-SET", CONFIGURATION_SET)
 
     # Record the MIME types of both parts - text/plain and text/html.
-    part1 = MIMEText(BODY_TEXT, 'plain')
-    part2 = MIMEText(BODY_HTML, 'html')
+    part1 = MIMEText(BODY_TEXT, "plain")
+    part2 = MIMEText(BODY_HTML, "html")
 
     # Attach parts into message container.
     # According to RFC 2046, the last part of a multipart message, in this case
@@ -191,13 +190,13 @@ if len(BODY_HTML) != 438:
         server = smtplib.SMTP(HOST, PORT)
         server.ehlo()
         server.starttls()
-        #stmplib docs recommend calling ehlo() before & after starttls()
+        # stmplib docs recommend calling ehlo() before & after starttls()
         server.ehlo()
         server.login(USERNAME_SMTP, PASSWORD_SMTP)
         server.sendmail(SENDER, RECIPIENT, msg.as_string())
         server.close()
     # Display an error message if something goes wrong.
     except Exception as e:
-        print ("Error: ", e)
+        print("Error: ", e)
     else:
-        print ("Email sent!")
+        print("Email sent!")
