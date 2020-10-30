@@ -68,9 +68,9 @@ secret = get_secret()
 iam = boto3.client("iam")
 alias = boto3.client("iam").list_account_aliases()["AccountAliases"][0]
 unapproved_userlist = []
-SENDER = "central-authority@ucop.edu"
+SENDER = json.loads(secret)["SENDER"]
 SENDERNAME = alias
-RECIPIENT = "david.rivera@ucop.edu"
+RECIPIENT = json.loads(secret)["TEST_REC"]
 AWS_REGION = "us-west-2"  # change if sending from another region
 CHARSET = "UTF-8"
 # Replace smtp_username with your Amazon SES SMTP user name.
