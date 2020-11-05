@@ -1,7 +1,3 @@
-#terraform {
-#  required_version = ">= 0.12"
-#}
-
 provider "archive" {}
 
 # Insert python script here
@@ -29,6 +25,10 @@ resource "aws_iam_role" "iam_for_lambda" {
   assume_role_policy = data.aws_iam_policy_document.policy.json
   name               = "chs_iam_for_lambda_cloudwatch"
   tags               = merge(var.tags, map("Name", var.name))
+}
+
+data "aws_iam_policy" "secret_manager" {
+  arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
 }
 
 resource "aws_iam_policy" "lambda_logging" {
@@ -64,6 +64,12 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
   role       = aws_iam_role.iam_for_lambda.name
 }
 
+resource "aws_iam_role_policy_attachment" "secrets_lambda_logs" {
+  count      = var.enabled ? 1 : 0
+  policy_arn = data.aws_iam_policy.secret_manager.arn
+  role       = aws_iam_role.iam_for_lambda.name
+}
+
 resource "aws_cloudwatch_event_rule" "every_thirty" {
   description         = "Fires off on the first of month - As a security precaution, this check is looking for local users that may have been created"
   name                = "check-for-local-users"
@@ -91,7 +97,8 @@ resource "aws_lambda_function" "lambda" {
   function_name    = "finduser"
   handler          = "finduser.lambda_handler"
   role             = aws_iam_role.iam_for_lambda.arn
-  runtime          = "python3.7"
+  runtime          = "python3.8"
+  timeout       = 10
   source_code_hash = data.archive_file.zip.output_base64sha256
   tags             = merge(var.tags, map("Name", var.name))
 
