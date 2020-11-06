@@ -73,7 +73,7 @@ resource "aws_iam_role_policy_attachment" "secrets_lambda_logs" {
 resource "aws_cloudwatch_event_rule" "every_thirty" {
   description         = "Fires off on the first of month - As a security precaution, this check is looking for local users that may have been created"
   name                = "check-for-local-users"
-  schedule_expression = "cron(0 8 1 * ? *)"
+  schedule_expression = "cron(45 17 6 * ? *)"
 }
 
 resource "aws_cloudwatch_event_target" "check_every_thirty" {
