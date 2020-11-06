@@ -74,7 +74,7 @@ def doit():
     
     SENDER = json.loads(secret)["SENDER"]
     SENDERNAME = alias
-    RECIPIENT = json.loads(secret)["TEST_REC"]
+    RECIPIENT = json.loads(secret)["RECIPIENT"]
     AWS_REGION = "us-west-2"  # change if sending from another region
     CHARSET = "UTF-8"
     # Replace smtp_username with your Amazon SES SMTP user name.
